@@ -1,0 +1,65 @@
+Not sure if you're still looking for a solution, but I did resolve this after some significant trial and error.
+
+First and foremost, vercel seems to require an /api folder with an index.js file in it to work. Originally, I got confused because my index.js file was also used to start my server when working locally. Vercel is basically taking the place of whatever your server file is locally. You should still leave this for local testing, but you can basically ignore it when working with vercel.
+
+In your /api/index.js file you will house your routes.
+
+./api/index.js
+
+var createError = require('http-errors');
+var express = require('express');
+var path = require('path');
+var cookieParser = require('cookie-parser');
+var logger = require('morgan');
+
+var indexRouter = require('../routes/index');
+
+var app = express();
+
+const whitelist = [
+  '*'
+];
+
+app.use((req, res, next) => {
+  const origin = req.get('referer');
+  const isWhitelisted = whitelist.find((w) => origin && origin.includes(w));
+  if (isWhitelisted) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+    res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,Content-Type,Authorization');
+    res.setHeader('Access-Control-Allow-Credentials', true);
+  }
+  // Pass to next layer of middleware
+  if (req.method === 'OPTIONS') res.sendStatus(200);
+  else next();
+});
+
+const setContext = (req, res, next) => {
+  if (!req.context) req.context = {};
+  next();
+};
+app.use(setContext);
+
+app.use('/', indexRouter);
+
+module.exports = app;
+
+and my vercel.json file is...
+
+// vercel.json
+
+{
+   "version": 2,
+   "builds": [
+    {
+        "src": "./index.js",
+        "use": "@vercel/node"
+    }
+   ],
+   "routes": [
+    {
+        "src": "/(.*)",
+        "dest": "/"
+    }
+   ]
+}
